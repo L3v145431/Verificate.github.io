@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate Verifier</title>
+    <link rel="stylesheet" href="verifier.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+</head>
+<style>
+:root {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(240, 10%, 3.9%);
+  --muted: hsl(240, 4.8%, 95.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(240, 10%, 3.9%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(240, 10%, 3.9%);
+  --border: hsl(240, 5.9%, 90%);
+  --input: hsl(240, 5.9%, 90%);
+  --primary: #FCD307;
+  --primary-foreground: hsl(0, 0%, 0%);
+  --secondary: hsl(240, 4.8%, 95.9%);
+  --secondary-foreground: hsl(240, 5.9%, 10%);
+  --accent: hsl(240, 4.8%, 95.9%);
+  --accent-foreground: hsl(240, 5.9%, 10%);
+  --destructive: hsl(0, 84.2%, 60.2%);
+  --destructive-foreground: hsl(60, 9.1%, 97.8%);
+  --ring: hsl(240, 10%, 3.9%);
+  --radius: 0.5rem;
+  --primary-blue: hsl(207, 90%, 54%);
+  --secondary-green: hsl(122, 39%, 49%);
+  --accent-orange: hsl(33, 100%, 50%);
+  --neutral-50: hsl(0, 0%, 98%);
+  --neutral-100: hsl(0, 0%, 96%);
+  --neutral-200: hsl(0, 0%, 88%);
+  --neutral-400: hsl(0, 0%, 62%);
+  --neutral-600: hsl(0, 0%, 44%);
+  --neutral-800: hsl(0, 0%, 26%);
+  --purple: hsl(270, 91%, 65%);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  border-color: var(--border);
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: var(--background);
+  color: var(--foreground);
+  line-height: 1.6;
+}
+
+.loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid var(--neutral-200);
+  border-top: 2px solid var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.verifier-container {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.verifier-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.verifier-icon {
+  margin: 0 auto;
+  width: 4rem;
+  height: 4rem;
+  background-color: var(--primary);
+  background-opacity: 0.1;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.verifier-icon i {
+  color: var(--primary);
+  font-size: 1.5rem;
+}
+
+.verifier-header h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: var(--neutral-800);
+  margin-bottom: 0.5rem;
+}
+
+.verifier-header p {
+  color: var(--neutral-600);
+  max-width: 32rem;
+  margin: 0 auto;
+}
+
+.verification-card {
+  margin-bottom: 2rem;
+}
+
+.card {
+  background: white;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  border: 1px solid var(--neutral-200);
+  border-radius: 0.5rem;
+}
+
+.card-content {
+  padding: 2rem;
+}
+
+.verify-form-container {
+  max-width: 24rem;
+  margin: 0 auto;
+}
+
+.verify-form-container label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--neutral-700);
+  margin-bottom: 0.75rem;
+  display: block;
+}
+
+.verify-input-group {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.verify-input {
+  flex: 1;
+  border: 1px solid var(--neutral-200);
+  border-radius: 0.375rem;
+  padding: 0.75rem 1rem;
+  text-align: center;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.875rem;
+}
+
+.verify-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary);
+  box-shadow-opacity: 0.1;
+}
+
+.verify-hint {
+  font-size: 0.75rem;
+  color: var(--neutral-500);
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  background: transparent;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: black;
+  flex: 1;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary);
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.hidden {
+  display: none !important;
+}
+
+#toast-container {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.toast {
+  background: white;
+  border: 1px solid var(--neutral-200);
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  padding: 1rem;
+  min-width: 20rem;
+  animation: slideInRight 0.3s ease-out;
+}
+
+.toast.success {
+  border-left: 4px solid var(--secondary-green);
+}
+
+.toast.error {
+  border-left: 4px solid var(--destructive);
+}
+
+.toast-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.toast-header i {
+  font-size: 1.125rem;
+}
+
+.toast.success .toast-header i {
+  color: var(--secondary-green);
+}
+
+.toast.error .toast-header i {
+  color: var(--destructive);
+}
+
+.toast-title {
+  font-weight: 600;
+  color: var(--neutral-800);
+}
+
+.toast-description {
+  color: var(--neutral-600);
+  font-size: 0.875rem;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Estilos para el resultado de la verificación */
+.verification-result {
+  background: white;
+  border: 1px solid var(--neutral-200);
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  padding: 2rem;
+}
+
+.verification-success {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.verification-success .verification-icon {
+  margin: 0 auto;
+  width: 4rem;
+  height: 4rem;
+  background-color: var(--secondary-green);
+  background-opacity: 0.1;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.verification-success .verification-icon i {
+  color: white;
+  font-size: 1.5rem;
+}
+
+.verification-success h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--neutral-800);
+}
+
+.verification-success p {
+  color: var(--neutral-600);
+  margin-top: 0.5rem;
+}
+
+.certificate-details {
+  max-width: 32rem;
+  margin: 0 auto;
+}
+
+.certificate-preview {
+  background: #FCD307;
+  background-opacity: 0.05;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  border: 1px solid var(--primary);
+  border-opacity: 0.1;
+}
+
+.certificate-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.certificate-preview-user {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.certificate-preview-avatar {
+  width: 3rem;
+  height: 3rem;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+.certificate-preview-avatar i {
+  color: var(--primary);
+  font-size: 1.125rem;
+}
+
+.certificate-preview-info h3 {
+  font-weight: 600;
+  color: var(--neutral-800);
+  font-size: 1rem;
+}
+
+.certificate-preview-info p {
+  font-size: 0.875rem;
+  color: var(--neutral-600);
+}
+
+.certificate-data {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.data-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--neutral-200);
+}
+
+.data-label {
+  font-weight: 500;
+  color: var(--neutral-600);
+  font-size: 0.875rem;
+}
+
+.data-value {
+  color: var(--neutral-800);
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+</style>
+<body>
+    <!-- Loading Spinner -->
+    <div id="loading" class="loading hidden">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Verifier View -->
+    <div class="verifier-container">
+        <div class="verifier-header">
+            <div class="verifier-icon">
+                <i class="fas fa-search"></i>
+            </div>
+            <h1>Certificate Verification</h1>
+            <p>Enter a certificate number to verify its authenticity and view details</p>
+        </div>
+        <div class="card verification-card">
+            <div class="card-content">
+                <div class="verify-form-container">
+                    <label for="certificate-id">Certificate Number</label>
+                    <div class="verify-input-group">
+                        <input type="text" id="certificate-id" placeholder="Enter certificate number (e.g., WS-2025-001)" class="verify-input">
+                        <button class="btn btn-primary" onclick="verifyCertificate()">
+                            <span class="verify-btn-text">Verify</span>
+                            <div class="verify-btn-spinner hidden">
+                                <div class="spinner-small"></div>
+                            </div>
+                        </button>
+                    </div>
+                    <p class="verify-hint">Certificate numbers are case-sensitive</p>
+                </div>
+            </div>
+        </div>
+        <div id="verification-result" class="hidden"></div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container"></div>
+
+    <script>
+        // Configuración de Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyCmTISieA5tp7AKtXM0Vuf5afFuCZXv33k",
+  authDomain: "wses-a18fa.firebaseapp.com",
+  projectId: "wses-a18fa",
+  storageBucket: "wses-a18fa.appspot.com",
+  messagingSenderId: "147530546947",
+  appId: "1:147530546947:web:236f6e900decf4b0bab336"
+};
+
+// Inicializar Firebase
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+async function verifyCertificate() {
+  const certificateInput = document.getElementById('certificate-id').value.trim();
+  if (!certificateInput) {
+    showToast('error', 'Certificate ID Required', 'Please enter a certificate ID or hash to verify.');
+    return;
+  }
+
+  const btnText = document.querySelector('.verify-btn-text');
+  const btnSpinner = document.querySelector('.verify-btn-spinner');
+  btnText.classList.add('hidden');
+  btnSpinner.classList.add('active');
+
+  try {
+    const certificatesRef = db.collection('certificates');
+    const snapshotById = await certificatesRef.where('id', '==', certificateInput).get();
+    const snapshotByHash = await certificatesRef.where('hash', '==', certificateInput).get();
+
+    if (snapshotById.empty && snapshotByHash.empty) {
+      displayVerificationError();
+      showToast('error', 'Certificate Not Found', 'The certificate ID or hash was not found in our system.');
+      return;
+    }
+
+    let certificateData;
+    if (!snapshotById.empty) {
+      snapshotById.forEach(doc => {
+        certificateData = doc.data();
+      });
+    } else {
+      snapshotByHash.forEach(doc => {
+        certificateData = doc.data();
+      });
+    }
+
+    displayVerificationResult(certificateData);
+    showToast('success', 'Certificate Verified', 'This certificate is valid and authentic.');
+  } catch (error) {
+    console.error("Error verifying certificate: ", error);
+    showToast('error', 'Verification Failed', 'An error occurred while verifying the certificate.');
+  } finally {
+    btnText.classList.remove('hidden');
+    btnSpinner.classList.remove('active');
+  }
+}
+
+function displayVerificationResult(certificate) {
+  const resultContainer = document.getElementById('verification-result');
+  const completionDate = certificate.fecha ? new Date(certificate.fecha).toLocaleDateString() : 'N/A';
+
+  resultContainer.innerHTML = `
+    <div class="verification-result">
+      <div class="verification-success">
+        <div class="verification-icon">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <h2>Certificate Verified</h2>
+        <p>This certificate is valid and authentic</p>
+      </div>
+      <div class="certificate-details">
+        <div class="certificate-preview">
+          <div class="certificate-preview-header">
+            <div class="certificate-preview-user">
+              <div class="certificate-preview-avatar">
+                <i class="fas fa-graduation-cap"></i>
+              </div>
+              <div class="certificate-preview-info">
+                <h3>${certificate.nombre || 'N/A'}</h3>
+                <p>Certificate Holder</p>
+              </div>
+            </div>
+          </div>
+          <div class="certificate-data">
+            <div class="data-row">
+              <span class="data-label">Certificate ID</span>
+              <span class="data-value">${certificate.id || 'N/A'}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Course</span>
+              <span class="data-value">${certificate.curso || 'N/A'}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Completion Date</span>
+              <span class="data-value">${completionDate}</span>
+            </div>
+            <div class="data-row">
+              <span class="data-label">Status</span>
+              <span class="data-value" style="color: var(--secondary-green);">
+                <i class="fas fa-shield-alt"></i> Verified
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  resultContainer.classList.remove('hidden');
+}
+
+function displayVerificationError() {
+  const resultContainer = document.getElementById('verification-result');
+
+  resultContainer.innerHTML = `
+    <div class="verification-result">
+      <div class="verification-success">
+        <div class="verification-icon" style="background-color: var(--destructive); background-opacity: 0.1;">
+          <i class="fas fa-times-circle" style="color: var(--destructive);"></i>
+        </div>
+        <h2 style="color: var(--destructive);">Certificate Not Found</h2>
+        <p>The certificate ID or hash was not found in our system. Please check the ID or hash and try again.</p>
+      </div>
+    </div>
+  `;
+
+  resultContainer.classList.remove('hidden');
+}
+
+function showLoading() {
+  document.getElementById('loading').classList.remove('hidden');
+}
+
+function hideLoading() {
+  document.getElementById('loading').classList.add('hidden');
+}
+
+function showToast(type, title, description = '') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `
+    <div class="toast-header">
+      <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+      <div class="toast-title">${title}</div>
+    </div>
+    ${description ? `<div class="toast-description">${description}</div>` : ''}
+  `;
+  container.appendChild(toast);
+  setTimeout(() => {
+    if (toast.parentNode) {
+      toast.parentNode.removeChild(toast);
+    }
+  }, 5000);
+}
+
+    </script>
+</body>
+</html>
