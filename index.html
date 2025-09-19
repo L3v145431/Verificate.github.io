@@ -445,165 +445,173 @@ body {
     <!-- Toast Notifications -->
     <div id="toast-container"></div>
 
-    <script>
-        // Configuración de Firebase
-const firebaseConfig = {
-  apiKey: "AIzaSyCmTISieA5tp7AKtXM0Vuf5afFuCZXv33k",
-  authDomain: "wses-a18fa.firebaseapp.com",
-  projectId: "wses-a18fa",
-  storageBucket: "wses-a18fa.appspot.com",
-  messagingSenderId: "147530546947",
-  appId: "1:147530546947:web:236f6e900decf4b0bab336"
-};
+   <script>
+  // Configuración de Firebase
+  const firebaseConfig = {
+    apiKey: "AIzaSyCmTISieA5tp7AKtXM0Vuf5afFuCZXv33k",
+    authDomain: "wses-a18fa.firebaseapp.com",
+    projectId: "wses-a18fa",
+    storageBucket: "wses-a18fa.appspot.com",
+    messagingSenderId: "147530546947",
+    appId: "1:147530546947:web:236f6e900decf4b0bab336"
+  };
 
-// Inicializar Firebase
-const app = firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+  // Inicializar Firebase
+  const app = firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-async function verifyCertificate() {
-  const certificateInput = document.getElementById('certificate-id').value.trim();
-  if (!certificateInput) {
-    showToast('error', 'Certificate ID Required', 'Please enter a certificate ID or hash to verify.');
-    return;
+  // Leer el parámetro certificateId de la URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const certificateId = urlParams.get('certificateId');
+
+  // Si hay un certificateId en la URL, colocarlo en el campo de entrada
+  if (certificateId) {
+    document.getElementById('certificate-id').value = certificateId;
+    verifyCertificate(certificateId);
   }
 
-  const btnText = document.querySelector('.verify-btn-text');
-  const btnSpinner = document.querySelector('.verify-btn-spinner');
-  btnText.classList.add('hidden');
-  btnSpinner.classList.add('active');
-
-  try {
-    const certificatesRef = db.collection('certificates');
-    const snapshotById = await certificatesRef.where('id', '==', certificateInput).get();
-    const snapshotByHash = await certificatesRef.where('hash', '==', certificateInput).get();
-
-    if (snapshotById.empty && snapshotByHash.empty) {
-      displayVerificationError();
-      showToast('error', 'Certificate Not Found', 'The certificate ID or hash was not found in our system.');
+  async function verifyCertificate(certificateInput = null) {
+    let input = certificateInput;
+    if (!input) {
+      input = document.getElementById('certificate-id').value.trim();
+    }
+    if (!input) {
+      showToast('error', 'Certificate ID Required', 'Please enter a certificate ID or hash to verify.');
       return;
     }
-
-    let certificateData;
-    if (!snapshotById.empty) {
-      snapshotById.forEach(doc => {
-        certificateData = doc.data();
-      });
-    } else {
-      snapshotByHash.forEach(doc => {
-        certificateData = doc.data();
-      });
+    const btnText = document.querySelector('.verify-btn-text');
+    const btnSpinner = document.querySelector('.verify-btn-spinner');
+    if (btnText && btnSpinner) {
+      btnText.classList.add('hidden');
+      btnSpinner.classList.remove('hidden');
     }
-
-    displayVerificationResult(certificateData);
-    showToast('success', 'Certificate Verified', 'This certificate is valid and authentic.');
-  } catch (error) {
-    console.error("Error verifying certificate: ", error);
-    showToast('error', 'Verification Failed', 'An error occurred while verifying the certificate.');
-  } finally {
-    btnText.classList.remove('hidden');
-    btnSpinner.classList.remove('active');
+    try {
+      const certificatesRef = db.collection('certificates');
+      const snapshotById = await certificatesRef.where('id', '==', input).get();
+      const snapshotByHash = await certificatesRef.where('hash', '==', input).get();
+      if (snapshotById.empty && snapshotByHash.empty) {
+        displayVerificationError();
+        showToast('error', 'Certificate Not Found', 'The certificate ID or hash was not found in our system.');
+        return;
+      }
+      let certificateData;
+      if (!snapshotById.empty) {
+        snapshotById.forEach(doc => {
+          certificateData = doc.data();
+        });
+      } else {
+        snapshotByHash.forEach(doc => {
+          certificateData = doc.data();
+        });
+      }
+      displayVerificationResult(certificateData);
+      showToast('success', 'Certificate Verified', 'This certificate is valid and authentic.');
+    } catch (error) {
+      console.error("Error verifying certificate: ", error);
+      showToast('error', 'Verification Failed', 'An error occurred while verifying the certificate.');
+    } finally {
+      if (btnText && btnSpinner) {
+        btnText.classList.remove('hidden');
+        btnSpinner.classList.add('hidden');
+      }
+    }
   }
-}
 
-function displayVerificationResult(certificate) {
-  const resultContainer = document.getElementById('verification-result');
-  const completionDate = certificate.fecha ? new Date(certificate.fecha).toLocaleDateString() : 'N/A';
-
-  resultContainer.innerHTML = `
-    <div class="verification-result">
-      <div class="verification-success">
-        <div class="verification-icon">
-          <i class="fas fa-check-circle"></i>
+  function displayVerificationResult(certificate) {
+    const resultContainer = document.getElementById('verification-result');
+    const completionDate = certificate.fecha ? new Date(certificate.fecha).toLocaleDateString() : 'N/A';
+    resultContainer.innerHTML = `
+      <div class="verification-result">
+        <div class="verification-success">
+          <div class="verification-icon">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <h2>Certificate Verified</h2>
+          <p>This certificate is valid and authentic</p>
         </div>
-        <h2>Certificate Verified</h2>
-        <p>This certificate is valid and authentic</p>
-      </div>
-      <div class="certificate-details">
-        <div class="certificate-preview">
-          <div class="certificate-preview-header">
-            <div class="certificate-preview-user">
-              <div class="certificate-preview-avatar">
-                <i class="fas fa-graduation-cap"></i>
+        <div class="certificate-details">
+          <div class="certificate-preview">
+            <div class="certificate-preview-header">
+              <div class="certificate-preview-user">
+                <div class="certificate-preview-avatar">
+                  <i class="fas fa-graduation-cap"></i>
+                </div>
+                <div class="certificate-preview-info">
+                  <h3>${certificate.nombre || 'N/A'}</h3>
+                  <p>Certificate Holder</p>
+                </div>
               </div>
-              <div class="certificate-preview-info">
-                <h3>${certificate.nombre || 'N/A'}</h3>
-                <p>Certificate Holder</p>
+            </div>
+            <div class="certificate-data">
+              <div class="data-row">
+                <span class="data-label">Certificate ID</span>
+                <span class="data-value">${certificate.id || 'N/A'}</span>
+              </div>
+              <div class="data-row">
+                <span class="data-label">Course</span>
+                <span class="data-value">${certificate.curso || 'N/A'}</span>
+              </div>
+              <div class="data-row">
+                <span class="data-label">Completion Date</span>
+                <span class="data-value">${completionDate}</span>
+              </div>
+              <div class="data-row">
+                <span class="data-label">Status</span>
+                <span class="data-value" style="color: var(--secondary-green);">
+                  <i class="fas fa-shield-alt"></i> Verified
+                </span>
               </div>
             </div>
           </div>
-          <div class="certificate-data">
-            <div class="data-row">
-              <span class="data-label">Certificate ID</span>
-              <span class="data-value">${certificate.id || 'N/A'}</span>
-            </div>
-            <div class="data-row">
-              <span class="data-label">Course</span>
-              <span class="data-value">${certificate.curso || 'N/A'}</span>
-            </div>
-            <div class="data-row">
-              <span class="data-label">Completion Date</span>
-              <span class="data-value">${completionDate}</span>
-            </div>
-            <div class="data-row">
-              <span class="data-label">Status</span>
-              <span class="data-value" style="color: var(--secondary-green);">
-                <i class="fas fa-shield-alt"></i> Verified
-              </span>
-            </div>
+        </div>
+      </div>
+    `;
+    resultContainer.classList.remove('hidden');
+  }
+
+  function displayVerificationError() {
+    const resultContainer = document.getElementById('verification-result');
+    resultContainer.innerHTML = `
+      <div class="verification-result">
+        <div class="verification-success">
+          <div class="verification-icon" style="background-color: var(--destructive); background-opacity: 0.1;">
+            <i class="fas fa-times-circle" style="color: var(--destructive);"></i>
           </div>
+          <h2 style="color: var(--destructive);">Certificate Not Found</h2>
+          <p>The certificate ID or hash was not found in our system. Please check the ID or hash and try again.</p>
         </div>
       </div>
-    </div>
-  `;
+    `;
+    resultContainer.classList.remove('hidden');
+  }
 
-  resultContainer.classList.remove('hidden');
-}
+  function showLoading() {
+    document.getElementById('loading').classList.remove('hidden');
+  }
 
-function displayVerificationError() {
-  const resultContainer = document.getElementById('verification-result');
+  function hideLoading() {
+    document.getElementById('loading').classList.add('hidden');
+  }
 
-  resultContainer.innerHTML = `
-    <div class="verification-result">
-      <div class="verification-success">
-        <div class="verification-icon" style="background-color: var(--destructive); background-opacity: 0.1;">
-          <i class="fas fa-times-circle" style="color: var(--destructive);"></i>
-        </div>
-        <h2 style="color: var(--destructive);">Certificate Not Found</h2>
-        <p>The certificate ID or hash was not found in our system. Please check the ID or hash and try again.</p>
+  function showToast(type, title, description = '') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+      <div class="toast-header">
+        <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+        <div class="toast-title">${title}</div>
       </div>
-    </div>
-  `;
+      ${description ? `<div class="toast-description">${description}</div>` : ''}
+    `;
+    container.appendChild(toast);
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.parentNode.removeChild(toast);
+      }
+    }, 5000);
+  }
+</script>
 
-  resultContainer.classList.remove('hidden');
-}
-
-function showLoading() {
-  document.getElementById('loading').classList.remove('hidden');
-}
-
-function hideLoading() {
-  document.getElementById('loading').classList.add('hidden');
-}
-
-function showToast(type, title, description = '') {
-  const container = document.getElementById('toast-container');
-  const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  toast.innerHTML = `
-    <div class="toast-header">
-      <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
-      <div class="toast-title">${title}</div>
-    </div>
-    ${description ? `<div class="toast-description">${description}</div>` : ''}
-  `;
-  container.appendChild(toast);
-  setTimeout(() => {
-    if (toast.parentNode) {
-      toast.parentNode.removeChild(toast);
-    }
-  }, 5000);
-}
-
-    </script>
 </body>
 </html>
